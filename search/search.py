@@ -19,7 +19,58 @@ by Pacman agents (in searchAgents.py).
 """
 
 import util
-import heapq
+
+# ______________________________________________________________________________
+
+
+class Problem(object):
+    """The abstract class for a formal problem. You should subclass
+    this and implement the methods actions and result, and possibly
+    __init__, goal_test, and path_cost. Then you will create instances
+    of your subclass and solve them with the various search functions."""
+
+    def __init__(self, initial, goal=None):
+        """The constructor specifies the initial state, and possibly a goal
+        state, if there is a unique goal. Your subclass's constructor can add
+        other arguments."""
+        self.initial = initial
+        self.goal = goal
+
+    def actions(self, state):
+        """Return the actions that can be executed in the given
+        state. The result would typically be a list, but if there are
+        many actions, consider yielding them one at a time in an
+        iterator, rather than building them all at once."""
+        raise NotImplementedError
+
+    def result(self, state, action):
+        """Return the state that results from executing the given
+        action in the given state. The action must be one of
+        self.actions(state)."""
+        raise NotImplementedError
+
+    def goal_test(self, state):
+        """Return True if the state is a goal. The default method compares the
+        state to self.goal or checks for state in self.goal if it is a
+        list, as specified in the constructor. Override this method if
+        checking against a single self.goal is not enough."""
+        if isinstance(self.goal, list):
+            return is_in(state, self.goal)
+        else:
+            return state == self.goal
+
+    def path_cost(self, c, state1, action, state2):
+        """Return the cost of a solution path that arrives at state2 from
+        state1 via action, assuming cost c to get up to state1. If the problem
+        is such that the path doesn't matter, this function will only look at
+        state2.  If the path does matter, it will consider c and maybe state1
+        and action. The default method costs 1 for every step in the path."""
+        return c + 1
+
+    def value(self, state):
+        """For optimization problems, each state has a value. Hill-climbing
+        and related algorithms try to maximize this value."""
+        raise NotImplementedError
 
 
 # ______________________________________________________________________________
@@ -54,15 +105,17 @@ class Node:
     def expand(self, problem):
         """List the nodes reachable in one step from this node."""
         return [self.child_node(problem, action)
-                for action in problem.actions(self.state)]
+                for action in problem.getSuccessors(self.state)]
 
     def child_node(self, problem, action):
         """[Figure 3.10]"""
-        next_state = problem.result(self.state, action)
-        next_node = Node(next_state, self, action,
-                         problem.path_cost(self.path_cost, self.state,
-                                           action, next_state))
-        return next_node
+        next_state = action[0]
+        return Node(next_state, self, action[1], self.path_cost + action[2])
+        # next_state = problem.result(self.state, action)
+        # next_node = Node(next_state, self, action,
+        #                  problem.path_cost(self.path_cost, self.state,
+        #                                    action, next_state))
+        # return next_node
 
     def solution(self):
         """Return the sequence of actions to go from the root to this node."""
@@ -89,8 +142,6 @@ class Node:
 
 
 # ______________________________________________________________________________
-
-
 
 
 class SearchProblem:
@@ -151,7 +202,7 @@ def generalGraphSearch(problem, fringe):
     """
     A general algorithm for searching
     """
-    node = Node(state=problem.getStartState(), action="Stop")
+    node = Node(problem.getStartState())
     fringe.push(node)
     visited = set()
     while not fringe.isEmpty():
@@ -165,13 +216,9 @@ def generalGraphSearch(problem, fringe):
         if curr_state not in visited:
             visited.add(curr_state)
 
-            for successor in problem.getSuccessors(curr_state):
-                next_state = successor[0]
-                next_action = successor[1]
-                next_cost = successor[2]
-                if next_state not in visited:
-                    next_node = Node(state=next_state, parent=node, action=next_action, path_cost=node.path_cost+next_cost)
-                    fringe.push(next_node)
+            for sub_node in node.expand(problem):
+                if sub_node.state not in visited:
+                    fringe.push(sub_node)
 
     return False
 
@@ -189,6 +236,7 @@ def depthFirstSearch(problem):
     print "Is the start a goal?", problem.isGoalState(problem.getStartState())
     print "Start's successors:", problem.getSuccessors(problem.getStartState())
     """
+    "*** YOUR CODE HERE ***"
     stack = util.Stack()
     return generalGraphSearch(problem, stack)
 
@@ -196,50 +244,38 @@ def breadthFirstSearch(problem):
     """
     Search the shallowest nodes in the search tree first.
     """
+    "*** YOUR CODE HERE ***"
     queue = util.Queue()
     return generalGraphSearch(problem, queue)
 
 def uniformCostSearch(problem):
     "Search the node of least total cost first. "
-
+    "*** YOUR CODE HERE ***"
+    
+    # init
     fringe = util.PriorityQueue()
     visited = set()
 
-    node = Node(state=problem.getStartState(), action="Stop")
+    node = Node(state=problem.getStartState())
     fringe.push(node, node.path_cost)
 
     while not fringe.isEmpty():
 
+        # get the min-cost node
         node = fringe.pop()
         curr_state = node.state
+
+        if (curr_state in visited):
+            continue
+
+        visited.add(curr_state)
 
         if problem.isGoalState(curr_state):
             return node.solution()
 
-        visited.add(curr_state)
-
-        for successor in problem.getSuccessors(curr_state):
-
-            next_state = successor[0]
-            next_action = successor[1]
-            next_cost = successor[2]
-            cost = next_cost + node.path_cost
-
-            next_node = Node(state=next_state, parent=node, action=next_action, path_cost=cost)
-
-            if next_state not in visited:
-
-                for index, (p, c, _node) in enumerate(fringe.heap):
-                    # print next_state, _node
-                    if next_state == _node.state:
-                        if p <= cost:
-                            break
-                        del fringe.heap[index]
-                        fringe.heap.append((cost, c, next_node))
-                        heapq.heapify(fringe.heap)
-                        break
-                else:
-                    fringe.push(next_node, cost)
+        for sub_node in node.expand(problem):
+            if sub_node.state not in visited:
+                fringe.push(sub_node, sub_node.path_cost)
 
     return None
 
@@ -254,27 +290,64 @@ def aStarSearch(problem, heuristic=nullHeuristic):
     "Search the node that has the lowest combined cost and heuristic first."
     "*** YOUR CODE HERE ***"
 
-    # fringe = util.PriorityQueue()
-    # # node = (location, path, cost)
-    # node = (problem.getStartState(), [], 0)
-    # fringe.push(node, 0)
-    # visited = set()
+    # init
+    fringe = util.PriorityQueue()
+    visited = set()
 
-    # while not fringe.isEmpty():
-    #     # node[2] now is cumulative cost
-    #     node = fringe.pop()
-    #     if problem.isGoalState(node[0]):
-    #         return node[1]
-    #     if node[0] not in visited:
-    #         visited.add(node[0])
-    #         for successor in problem.getSuccessors(node[0]):
-    #             if successor[0] not in visited:
-    #                 cost = node[2] + successor[2]
-    #                 totalCost = cost + heuristic(successor[0], problem)
-    #                 node = (successor[0], node[1] + [successor[1]], cost)
-    #                 fringe.push(node, totalCost)
+    node = Node(state=problem.getStartState())
+    fringe.push(node, node.path_cost)
+
+    while not fringe.isEmpty():
+
+        # get the min-cost node
+        node = fringe.pop()
+        curr_state = node.state
+
+        if (curr_state in visited):
+            continue
+
+        visited.add(curr_state)
+
+        if problem.isGoalState(curr_state):
+            return node.solution()
+
+        for sub_node in node.expand(problem):
+            if sub_node.state not in visited:
+                fringe.push(sub_node, sub_node.path_cost + heuristic(sub_node.state, problem))
 
     return None
+    # fringe = util.PriorityQueue()
+    # visited = set()
+
+    # node = Node(state=problem.getStartState(), path_cost=heuristic(problem.getStartState(), problem))
+    # fringe.push(node, node.path_cost)
+
+    # while not fringe.isEmpty():
+
+    #     node = fringe.pop()
+    #     curr_state = node.state
+
+    #     if (curr_state in visited):
+    #         continue
+
+    #     visited.add(curr_state)
+
+    #     if problem.isGoalState(curr_state):
+    #         return node.solution()
+
+    #     for successor in problem.getSuccessors(curr_state):
+
+    #         next_state = successor[0]
+    #         next_action = successor[1]
+    #         next_cost = successor[2]
+    #         cost = next_cost + node.path_cost + heuristic(next_state, problem)
+
+    #         next_node = Node(state=next_state, parent=node, action=next_action, path_cost=cost)
+
+    #         if next_state not in visited:
+    #             fringe.push(next_node, cost)
+
+    # return None
 
 
 # Abbreviations
