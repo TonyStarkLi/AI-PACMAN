@@ -83,7 +83,37 @@ class ReflexAgent(Agent):
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
         "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+        # get all for positions
+        foodPos = newFood.asList()
+        # count how many foods
+        foodCount = len(foodPos)
+        # set default distance
+        closestDistance = float("inf")
+
+        # edge cases where there are no more food
+        if foodCount == 0 :
+          closestDistance = 0
+        else:
+          # for each food we cal the distance
+          for i in xrange(foodCount):
+            distance = manhattanDistance(foodPos[i],newPos)
+            distance += foodCount*100
+            # update distance: compare to each possible solution
+            if distance < closestDistance:
+              closestDistance = distance
+
+        # print closestDistance
+        score = -closestDistance
+
+        # considering ghost pos
+        for i in xrange(len(newGhostStates)):
+          ghostPos = successorGameState.getGhostPosition(i+1)
+          # if the ghost is next to pac man, then will never move to that direction
+          if manhattanDistance(newPos,ghostPos)<=1 :
+            score -= float("inf")
+
+        return score
+        # return successorGameState.getScore()
 
 def scoreEvaluationFunction(currentGameState):
     """
@@ -119,7 +149,6 @@ class MinimaxAgent(MultiAgentSearchAgent):
     """
       Your minimax agent (question 2)
     """
-
     def getAction(self, gameState):
         """
           Returns the minimax action from the current gameState using self.depth
@@ -138,7 +167,36 @@ class MinimaxAgent(MultiAgentSearchAgent):
             Returns the total number of agents in the game
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        numAgent = gameState.getNumAgents()
+        ActionScore = []
+
+        def getList(lst):
+          return [x for x in lst if x != 'Stop']
+
+        def miniMax(s, iterCount):
+          # base cases
+          if iterCount >= self.depth*numAgent or s.isWin() or s.isLose():
+            return self.evaluationFunction(s)
+
+          turn = iterCount%numAgent
+          #Ghost min
+          if iterCount%numAgent != 0:
+            result = float("inf")
+            for lst in getList(s.getLegalActions(turn)):
+              result = min(result, miniMax(s.generateSuccessor(turn,lst), iterCount+1))
+            return result
+
+          # Pacman Max
+          else: 
+            result = float("-inf")
+            for lst in getList(s.getLegalActions(turn)):
+              result = max(result, miniMax(s.generateSuccessor(turn,lst), iterCount+1))
+              if iterCount == 0:
+                ActionScore.append(result)
+            return result
+          
+        _ = miniMax(gameState, 0);
+        return getList(gameState.getLegalActions(0))[ActionScore.index(max(ActionScore))]
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
@@ -150,7 +208,43 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
           Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        numAgent = gameState.getNumAgents()
+        ActionScore = []
+
+        def getList(lst):
+          return [x for x in lst if x != 'Stop']
+
+        def alphaBeta(s, iterCount, alpha, beta):
+          # base cases
+          if iterCount >= self.depth*numAgent or s.isWin() or s.isLose():
+            return self.evaluationFunction(s)
+
+          turn = iterCount%numAgent
+          #Ghost min
+          if iterCount%numAgent != 0:
+            result = 1e10
+            for lst in getList(s.getLegalActions(turn)):
+              result = min(result, alphaBeta(s.generateSuccessor(turn,lst), iterCount+1, alpha, beta))
+              beta = min(beta, result)
+              if beta < alpha:
+                break
+            return result
+
+          # Pacman Max
+          else: 
+            result = -1e10
+            for lst in getList(s.getLegalActions(turn)):
+              result = max(result, alphaBeta(s.generateSuccessor(turn,lst), iterCount+1, alpha, beta))
+              alpha = max(alpha, result)
+              if iterCount == 0:
+                ActionScore.append(result)
+              if beta < alpha:
+                break
+            return result
+          
+        _ = alphaBeta(gameState, 0, -1e20, 1e20);
+        return getList(gameState.getLegalActions(0))[ActionScore.index(max(ActionScore))]
+
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
@@ -165,7 +259,39 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
           legal moves.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        numAgent = gameState.getNumAgents()
+        ActionScore = []
+
+        def getList(lst):
+          return [x for x in lst if x != 'Stop']
+
+        def expectimax(s, iterCount):
+          # base cases
+          if iterCount >= self.depth*numAgent or s.isWin() or s.isLose():
+            return self.evaluationFunction(s)
+
+          turn = iterCount%numAgent
+          #Ghost min
+          if iterCount%numAgent != 0:
+            successorScore = []
+            for lst in getList(s.getLegalActions(turn)):
+              result = expectimax(s.generateSuccessor(turn,lst), iterCount+1)
+              successorScore.append(result)
+            averageScore = sum([float(x) / len(successorScore) for x in successorScore])
+            return averageScore
+
+          # Pacman Max
+          else: 
+            result = float("-inf")
+            for lst in getList(s.getLegalActions(turn)):
+              result = max(result, expectimax(s.generateSuccessor(turn,lst), iterCount+1))
+              if iterCount == 0:
+                ActionScore.append(result)
+            return result
+          
+        _ = expectimax(gameState, 0);
+        return getList(gameState.getLegalActions(0))[ActionScore.index(max(ActionScore))]
+
 
 def betterEvaluationFunction(currentGameState):
     """
@@ -195,4 +321,18 @@ class ContestAgent(MultiAgentSearchAgent):
         """
         "*** YOUR CODE HERE ***"
         util.raiseNotDefined()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
