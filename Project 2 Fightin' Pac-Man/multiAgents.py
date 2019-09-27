@@ -301,7 +301,59 @@ def betterEvaluationFunction(currentGameState):
       DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    
+    def getScoreFromGhost(gameState):
+      score = 0
+      for ghost in gameState.getGhostStates():
+        pacmanPos = gameState.getPacmanPosition()
+        ghostPos = ghost.getPosition()
+        distance = manhattanDistance(pacmanPos, ghostPos)
+        if ghost.scaredTimer > 0:
+          score += pow(max(8 - distance, 0), 2)
+        else:
+          score -= pow(max(7 - distance, 0), 2)
+      return score
+
+    def getScoreFromFood(gameState):
+      distance = []
+      foodList = gameState.getFood().asList()
+      for food in foodList:
+        pacmanPos = gameState.getPacmanPosition()
+        distance.append(1.0/manhattanDistance(pacmanPos, food))
+      if len(distance)>0:
+        return max(distance)
+      else:
+        return 0
+
+    def getScoreFromCapsules(gameState):
+      score = []
+      capsules = gameState.getCapsules()
+      for cap in capsules:
+        pacmanPos = gameState.getPacmanPosition()
+        score.append(50.0/manhattanDistance(pacmanPos, cap))
+      if len(score) > 0:
+        return max(score)
+      else:
+        return 0
+
+    def endGame(gameState):
+      score = 0
+      distance = 1e6
+      for ghost in gameState.getGhostStates():
+        pacmanPos = gameState.getPacmanPosition()
+        ghostPos = ghost.getPosition()
+        distance = min(manhattanDistance(pacmanPos, ghostPos), distance)
+      score -= pow(distance, 2)
+      if gameState.isLose():
+        score = 1e6
+      return score
+
+
+    score = currentGameState.getScore()
+    return score + getScoreFromGhost(currentGameState) + getScoreFromFood(currentGameState) + getScoreFromCapsules(currentGameState)
+
+    # score from ghost
+    
 
 # Abbreviation
 better = betterEvaluationFunction
